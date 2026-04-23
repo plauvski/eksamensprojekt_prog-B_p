@@ -1,4 +1,8 @@
 import tkinter as tk
+import math
+
+def calculate_distance(city1, city2):
+    return math.sqrt((city2.x - city1.x)**2 + (city2.y - city1.y)**2)
 
 class City:
     def __init__(self, name, x, y):
@@ -21,7 +25,8 @@ class Edge:
         self.city1 = city1
         self.city2 = city2
         self.distance = distance
-        self.line_id = None  # canvas reference
+        self.line_id = None
+        self.text_id = None
 
     def connects(self, city):
         return self.city1 == city or self.city2 == city
@@ -108,8 +113,8 @@ class App:
         return None
 
     # Connect two cities
-    def connect_city(self, event):
-        city = self.find_city_at_position(event.x, event.y)
+    def connect_city(self, pos):
+        city = self.find_city_at_position(pos.x, pos.y)
         if not city:
             return
         if self.selected_city is None:
@@ -117,8 +122,9 @@ class App:
             # Highlight selected city with blue
             self.canvas.itemconfig(city.draw_id, fill="blue")
         else:
-            # Create edge
-            edge = Edge(self.selected_city, city, 1)
+            # Create weighted edge
+            distance = calculate_distance(self.selected_city, city)
+            edge = Edge(self.selected_city, city, distance)
             # Draw connection
             edge.line_id = self.canvas.create_line(self.selected_city.x, self.selected_city.y, city.x, city.y)
             # Add edge to both cities' edge lists
@@ -126,14 +132,19 @@ class App:
             city.add_edge(edge)
             # Add to "global" edge list
             self.edges.append(edge)
+            # Display weight next to edge
+            mid_x = (self.selected_city.x + city.x) / 2
+            mid_y = (self.selected_city.y + city.y) / 2
+            edge.text_id = self.canvas.create_text(
+                mid_x, mid_y, text=f"{distance:.1f}", fill="blue") # .1f = 1 decimal point
 
             # Reset colour
             self.canvas.itemconfig(self.selected_city.draw_id, fill="black")
             self.selected_city = None
 
     # Delete a city
-    def delete_city(self, event):
-        city = self.find_city_at_position(event.x, event.y)
+    def delete_city(self, pos):
+        city = self.find_city_at_position(pos.x, pos.y)
         if not city:
             return
         # Delete all edges connected to city 
@@ -155,6 +166,7 @@ class App:
         edge.city2.edges.remove(edge)
         # Remove from "global" edge list
         self.edges.remove(edge)
+        self.canvas.delete(edge.text_id)
 
     def run(self):
         self.root.mainloop()
