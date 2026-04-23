@@ -182,7 +182,9 @@ class App:
     def connect_city(self, pos):
         city = self.find_city_at_position(pos.x, pos.y)
         if city == self.selected_city:
-            print("Kan ikke forbinde en by til sig selv")
+            print("Cannot connect a city to itself.")
+            self.selected_city = None
+            self.update_all_city_colors()
             return
         # No city selected
         if not city:
