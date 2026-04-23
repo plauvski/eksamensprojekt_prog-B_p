@@ -181,6 +181,7 @@ class App:
     # Connect two cities
     def connect_city(self, pos):
         city = self.find_city_at_position(pos.x, pos.y)
+        # Check for attempt to connect city to self
         if city == self.selected_city:
             print("Cannot connect a city to itself.")
             self.selected_city = None
@@ -197,6 +198,12 @@ class App:
         else:
             # Create weighted edge
             distance = calculate_distance(self.selected_city, city)
+            # Check for existing edge
+            if any(edge.other(self.selected_city) == city for edge in self.selected_city.edges):
+                print("Connection already exists")
+                self.selected_city = None
+                self.update_all_city_colors()
+                return
             edge = Edge(self.selected_city, city, distance)
             # Draw connection
             edge.line_id = self.canvas.create_line(self.selected_city.x, self.selected_city.y, city.x, city.y)
