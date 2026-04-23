@@ -7,7 +7,7 @@ def calculate_distance(city1, city2):
 
 # Dijkstras algorithm
 def dijkstra(start, end, cities):
-    distances = {city: float('inf') for city in cities}
+    distances = {city: float('inf') for city in cities} # Note: Implicit hashing
     previous = {}
 
     distances[start] = 0
@@ -28,8 +28,8 @@ def dijkstra(start, end, cities):
                 distances[neighbor] = new_distance
                 previous[neighbor] = current
         # Edge case handling (no path)
-        if distances[end] == float('inf'):
-            return [], float('inf')
+    if distances[end] == float('inf'):
+        return [], float('inf')
     # Reconstruct path
     path = []
     current = end
@@ -165,16 +165,33 @@ class App:
             if abs(city.x - x) < 10 and abs(city.y - y) < 10:
                 return city
         return None
+    
+    # Colour update methods
+    def update_city_color(self, city):
+        if city == self.start_city:
+            self.canvas.itemconfig(city.draw_id, fill="green")
+        elif city == self.end_city:
+            self.canvas.itemconfig(city.draw_id, fill="red")
+        else:
+            self.canvas.itemconfig(city.draw_id, fill="black")
+    def update_all_city_colors(self):
+        for city in self.cities:
+            self.update_city_color(city)
 
     # Connect two cities
     def connect_city(self, pos):
         city = self.find_city_at_position(pos.x, pos.y)
+        if city == self.selected_city:
+            print("Kan ikke forbinde en by til sig selv")
+            return
+        # No city selected
         if not city:
             return
+        # Select and highlight first selected city with blue
         if self.selected_city is None:
             self.selected_city = city
-            # Highlight selected city with blue
             self.canvas.itemconfig(city.draw_id, fill="blue")
+        # Upon selection of second city
         else:
             # Create weighted edge
             distance = calculate_distance(self.selected_city, city)
@@ -193,7 +210,7 @@ class App:
                 mid_x, mid_y, text=f"{distance:.1f}", fill="blue") # .1f = 1 decimal point
 
             # Reset colour
-            self.canvas.itemconfig(self.selected_city.draw_id, fill="black")
+            self.update_city_color(self.selected_city)
             self.selected_city = None
 
     # Delete a city
@@ -213,6 +230,7 @@ class App:
         # Remove from canvas
         self.canvas.delete(city.draw_id)
         self.canvas.delete(city.text_id)
+        self.reset_all_city_colors()
 
         print(f"Deleted {city.name}")
     
@@ -231,11 +249,8 @@ class App:
         if not city:
             return
         # Reset previous start
-        if self.start_city:
-            self.canvas.itemconfig(self.start_city.draw_id, fill="black")
-
         self.start_city = city
-        self.canvas.itemconfig(city.draw_id, fill="green")
+        self.update_all_city_colors()
         print(f"Start: {city.name}")
 
     def select_end(self, pos):
@@ -243,16 +258,15 @@ class App:
         if not city:
             return
         # Reset previous end
-        if self.end_city:
-            self.canvas.itemconfig(self.end_city.draw_id, fill="black")
-
         self.end_city = city
-        self.canvas.itemconfig(city.draw_id, fill="red")
+        self.update_all_city_colors()
         print(f"End: {city.name}")
 
     def run_dijkstra(self):
         # Clears previous path
         self.reset_edges()
+        # Update colours
+        self.update_all_city_colors()
         # Missing start/end node handling
         if not self.start_city or not self.end_city:
             print("Select a start and end destination.")
