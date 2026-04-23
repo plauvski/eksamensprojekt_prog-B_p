@@ -120,7 +120,8 @@ class App:
         tk.Radiobutton(self.sidebar, text="End", variable=self.mode, value="end", bg="lightgray").grid(row=5, column=0, sticky="w", padx=10)
 
         # Run Dijkstra button
-        tk.Button(self.sidebar, text="Run", command=self.run_dijkstra).grid(row=6, column=0, pady=20)
+        self.run_button = tk.Button(self.sidebar, text="Run", bg="lightgray" , command=self.run_dijkstra)
+        self.run_button.grid(row=6, column=0, pady=20)
 
         # Result labels
         self.dist_label = tk.Label(self.sidebar, text="Distance: -", bg="lightgray", justify="left")
@@ -177,6 +178,11 @@ class App:
     def update_all_city_colors(self):
         for city in self.cities:
             self.update_city_color(city)
+    def update_run_button(self):
+        if self.start_city and self.end_city:
+            self.run_button.config(bg="green")
+        else:
+            self.run_button.config(bg="lightgray")
 
     # Connect two cities
     def connect_city(self, pos):
@@ -239,7 +245,10 @@ class App:
         # Remove from canvas
         self.canvas.delete(city.draw_id)
         self.canvas.delete(city.text_id)
-        self.reset_all_city_colors()
+
+        self.selected_city = None
+        self.update_all_city_colors()
+        self.update_run_button()
 
         print(f"Deleted {city.name}")
     
@@ -260,6 +269,7 @@ class App:
         # Reset previous start
         self.start_city = city
         self.update_all_city_colors()
+        self.update_run_button()
         print(f"Start: {city.name}")
 
     def select_end(self, pos):
@@ -269,6 +279,7 @@ class App:
         # Reset previous end
         self.end_city = city
         self.update_all_city_colors()
+        self.update_run_button()
         print(f"End: {city.name}")
 
     def run_dijkstra(self):
@@ -278,6 +289,8 @@ class App:
         self.update_all_city_colors()
         # Missing start/end node handling
         if not self.start_city or not self.end_city:
+            self.dist_label.config(text="Missing start/end")
+            self.path_label.config(text="")
             print("Select a start and end destination.")
             return
         # Reset previous path
