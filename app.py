@@ -1,0 +1,263 @@
+import tkinter as tk
+from dijkstra import dijkstra
+from graph_elements import City, Edge, calculate_distance
+
+class App:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("Dijkstra simulation")
+        
+        # Allow resizing of window
+        self.root.grid_rowconfigure(0, weight=1) 
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.state("zoomed") # Fills screen
+
+        # Default mode state 
+        self.mode = tk.StringVar(value="place")
+
+        # Layout
+        self.main_frame = tk.Frame(self.root)
+        self.main_frame.grid(row=0, column=0, sticky="nsew")
+        self.main_frame.grid_columnconfigure(1, weight=1)
+        self.main_frame.grid_rowconfigure(0, weight=1)
+
+        self.create_sidebar()
+        self.create_canvas()
+
+        # Data
+        self.cities = []
+        self.city_count = 0
+        self.selected_city = None
+        self.edges = []
+        self.start_city = None
+        self.end_city = None
+
+    # UI creation methods
+    def create_sidebar(self):
+        self.sidebar = tk.Frame(self.main_frame, width=150, bg="lightgray")
+        self.sidebar.grid(row=0, column=0, sticky="ns")
+
+        tk.Label(self.sidebar, text="Mode", bg="lightgray").grid(row=0, column=0, pady=10, padx=10)
+
+        # Mode radiobuttons
+        tk.Radiobutton(self.sidebar, text="Place", variable=self.mode, value="place", bg="lightgray").grid(row=1, column=0, sticky="w", padx=10)
+        tk.Radiobutton(self.sidebar, text="Connect", variable=self.mode, value="connect", bg="lightgray").grid(row=2, column=0, sticky="w", padx=10)
+        tk.Radiobutton(self.sidebar, text="Delete", variable=self.mode, value="delete", bg="lightgray").grid(row=3, column=0, sticky="w", padx=10)
+        tk.Radiobutton(self.sidebar, text="Start", variable=self.mode, value="start", bg="lightgray").grid(row=4, column=0, sticky="w", padx=10)
+        tk.Radiobutton(self.sidebar, text="End", variable=self.mode, value="end", bg="lightgray").grid(row=5, column=0, sticky="w", padx=10)
+
+        # Run Dijkstra button
+        self.run_button = tk.Button(self.sidebar, text="Run", bg="lightgray" , command=self.run_dijkstra)
+        self.run_button.grid(row=6, column=0, pady=20)
+
+        # Result labels
+        self.dist_label = tk.Label(self.sidebar, text="Distance: -", bg="lightgray", justify="left")
+        self.dist_label.grid(row=7, column=0, padx=10, pady=10, sticky="w")
+        self.path_label = tk.Label(self.sidebar, text="Path: -", bg="lightgray", justify="left")
+        self.path_label.grid(row=8, column=0, padx=10, pady=10, sticky="w")
+
+    def create_canvas(self):
+        self.canvas = tk.Canvas(self.main_frame, bg="white")
+        self.canvas.grid(row=0, column=1, sticky="nsew")
+        self.canvas.bind("<Button-1>", self.handle_click) # Binds left mousebutton to handle_click method
+
+    # Click handling
+    def handle_click(self, pos):
+        mode = self.mode.get()
+        if mode == "place":
+            self.place_city(pos)
+        elif mode == "connect":
+            self.connect_city(pos)
+        elif mode == "delete":
+            self.delete_city(pos)
+        elif mode == "start":
+            self.select_start(pos)
+        elif mode == "end":
+            self.select_end(pos)
+
+    # Other features
+    def place_city(self, pos):
+        name = f"C{self.city_count}"
+        city = City(name, pos.x, pos.y)
+        self.cities.append(city)
+        # Draw city
+        city.draw_id = self.canvas.create_oval(pos.x - 5, pos.y - 5, pos.x + 5, pos.y + 5, fill="black")
+        city.text_id = self.canvas.create_text(pos.x, pos.y - 10, text=name)
+
+        print(city)
+        self.city_count += 1
+
+    # Find/select city method
+    def find_city_at_position(self, x, y):
+        for city in self.cities:
+            if abs(city.x - x) < 10 and abs(city.y - y) < 10:
+                return city
+        return None
+    
+    # Colour update methods
+    def update_city_color(self, city):
+        if city == self.start_city:
+            self.canvas.itemconfig(city.draw_id, fill="green")
+        elif city == self.end_city:
+            self.canvas.itemconfig(city.draw_id, fill="red")
+        else:
+            self.canvas.itemconfig(city.draw_id, fill="black")
+    def update_all_city_colors(self):
+        for city in self.cities:
+            self.update_city_color(city)
+    def update_run_button(self):
+        if self.start_city and self.end_city:
+            self.run_button.config(bg="green")
+        else:
+            self.run_button.config(bg="lightgray")
+
+    # Connect two cities
+    def connect_city(self, pos):
+        city = self.find_city_at_position(pos.x, pos.y)
+        # Check for attempt to connect city to self
+        if city == self.selected_city:
+            print("Cannot connect a city to itself.")
+            self.selected_city = None
+            self.update_all_city_colors()
+            return
+        # No city selected
+        if not city:
+            return
+        # Select and highlight first selected city with blue
+        if self.selected_city is None:
+            self.selected_city = city
+            self.canvas.itemconfig(city.draw_id, fill="blue")
+        # Upon selection of second city
+        else:
+            # Create weighted edge
+            distance = calculate_distance(self.selected_city, city)
+            # Check for existing edge
+            if any(edge.other(self.selected_city) == city for edge in self.selected_city.edges):
+                print("Connection already exists")
+                self.selected_city = None
+                self.update_all_city_colors()
+                return
+            edge = Edge(self.selected_city, city, distance)
+            # Draw connection
+            edge.line_id = self.canvas.create_line(self.selected_city.x, self.selected_city.y, city.x, city.y)
+            # Add edge to both cities' edge lists
+            self.selected_city.add_edge(edge)
+            city.add_edge(edge)
+            # Add to "global" edge list
+            self.edges.append(edge)
+            # Display weight next to edge
+            mid_x = (self.selected_city.x + city.x) / 2
+            mid_y = (self.selected_city.y + city.y) / 2
+            edge.text_id = self.canvas.create_text(
+                mid_x, mid_y, text=f"{distance:.1f}", fill="blue") # .1f = 1 decimal point
+
+            # Reset colour
+            self.update_city_color(self.selected_city)
+            self.selected_city = None
+
+    # Delete a city
+    def delete_city(self, pos):
+        city = self.find_city_at_position(pos.x, pos.y)
+        if not city:
+            return
+        if city == self.start_city:
+            self.start_city = None
+        if city == self.end_city:
+            self.end_city = None
+        # Delete all edges connected to city 
+        for edge in city.edges[:]:  # Copy of list
+            self.delete_edge(edge)
+        # Delete city from list
+        self.cities.remove(city)
+        # Remove from canvas
+        self.canvas.delete(city.draw_id)
+        self.canvas.delete(city.text_id)
+
+        self.selected_city = None
+        self.update_all_city_colors()
+        self.update_run_button()
+
+        print(f"Deleted {city.name}")
+    
+    def delete_edge(self, edge):
+        # Remove from canvas
+        self.canvas.delete(edge.line_id)
+        # Remove edge from both cities' edge lists
+        edge.city1.edges.remove(edge)
+        edge.city2.edges.remove(edge)
+        # Remove from "global" edge list
+        self.edges.remove(edge)
+        self.canvas.delete(edge.text_id)
+
+    def select_start(self, pos):
+        city = self.find_city_at_position(pos.x, pos.y)
+        if not city:
+            return
+        # Reset previous start
+        self.start_city = city
+        self.update_all_city_colors()
+        self.update_run_button()
+        print(f"Start: {city.name}")
+
+    def select_end(self, pos):
+        city = self.find_city_at_position(pos.x, pos.y)
+        if not city:
+            return
+        # Reset previous end
+        self.end_city = city
+        self.update_all_city_colors()
+        self.update_run_button()
+        print(f"End: {city.name}")
+
+    def run_dijkstra(self):
+        # Clears previous path
+        self.reset_edges()
+        # Update colours
+        self.update_all_city_colors()
+        # Missing start/end node handling
+        if not self.start_city or not self.end_city:
+            self.dist_label.config(text="Missing start/end")
+            self.path_label.config(text="")
+            print("Select a start and end destination.")
+            return
+        # Reset previous path data
+        path, distance = dijkstra(self.start_city, self.end_city, self.cities)
+        # Used for display of cumulative distance in path_label
+        path_with_dist = []
+        current_dist = 0
+        for i in range(len(path)):
+            if i == 0:
+                path_with_dist.append(f"{path[i].name} (0)")
+            else:
+                for edge in path[i-1].edges:
+                    if edge.other(path[i-1]) == path[i]:
+                        current_dist += edge.distance
+                        break
+                path_with_dist.append(f"{path[i].name} ({current_dist:.1f})")
+        path_names = "->" + "\n->".join(path_with_dist)
+        # Edge case handling (no route)
+        if distance == float('inf') or not path:
+            self.dist_label.config(text="No route found")
+            self.path_label.config(text="")
+            return
+        # Update result labels
+        self.dist_label.config(text=f"Distance: {distance:.1f}")
+        self.path_label.config(text=f"Path: \n{path_names}")
+        print(f"Shortest path: {path_names}")
+        print("Distance:", distance)
+        self.draw_path(path)
+        
+    def draw_path(self, path):
+        for i in range(len(path) - 1):
+            city1 = path[i]
+            city2 = path[i + 1]
+            for edge in city1.edges:
+                if edge.other(city1) == city2:
+                    self.canvas.itemconfig(edge.line_id, fill="red", width=5)
+
+    def reset_edges(self):
+        for edge in self.edges:
+            self.canvas.itemconfig(edge.line_id, fill="black", width=1)
+
+    def run(self):
+        self.root.mainloop()
