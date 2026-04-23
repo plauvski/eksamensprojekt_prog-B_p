@@ -293,9 +293,22 @@ class App:
             self.path_label.config(text="")
             print("Select a start and end destination.")
             return
-        # Reset previous path
+        # Reset previous path data
         path, distance = dijkstra(self.start_city, self.end_city, self.cities)
-        path_names = "->" + "\n->".join(city.name for city in path)
+        # Used for display of cumulative distance in path_label
+        path_with_dist = []
+        current_dist = 0
+
+        for i in range(len(path)):
+            if i == 0:
+                path_with_dist.append(f"{path[i].name} (0)")
+            else:
+                for edge in path[i-1].edges:
+                    if edge.other(path[i-1]) == path[i]:
+                        current_dist += edge.distance
+                        break
+                path_with_dist.append(f"{path[i].name} ({current_dist:.1f})")
+        path_names = "->" + "\n->".join(path_with_dist)
         # Edge case handling (no route)
         if distance == float('inf') or not path:
             self.dist_label.config(text="No route found")
