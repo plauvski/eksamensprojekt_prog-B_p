@@ -5,8 +5,14 @@ class City:
         self.name = name
         self.x = x
         self.y = y
+        self.connections = []
+        self.draw_id = None
+        self.text_id = None
 
-    # format for print af City-objekt 
+    def add_connection(self, other_city, distance):
+        self.connections.append((other_city, distance))
+
+    # format for print of City-object
     def __repr__(self):
         return f"{self.name} ({self.x}, {self.y})"
 
@@ -14,36 +20,118 @@ class City:
 class App:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Dijkstra city simulation")
+        self.root.title("Dijkstra simulation")
+        
+        # Allow resizing of window
+        self.root.grid_rowconfigure(0, weight=1) 
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.state("zoomed") # Fills screen
 
-        self.canvas = tk.Canvas(self.root, width=700, height=700, bg="white")
-        self.canvas.pack()
+        # Default mode state 
+        self.mode = tk.StringVar(value="place")
 
+        # Layout
+        self.main_frame = tk.Frame(self.root)
+        self.main_frame.grid(row=0, column=0, sticky="nsew")
+        self.main_frame.grid_columnconfigure(1, weight=1)
+        self.main_frame.grid_rowconfigure(0, weight=1)
+
+        self.create_sidebar()
+        self.create_canvas()
+
+        # Data
         self.cities = []
         self.city_count = 0
+        self.selected_city = None  # used for connections
 
-        self.canvas.bind("<Button-1>", self.add_city)
+    # UI creation methods
+    def create_sidebar(self):
+        self.sidebar = tk.Frame(self.main_frame, width=150, bg="lightgray")
+        self.sidebar.grid(row=0, column=0, sticky="ns")
 
-    # tilføj by på canvas
-    def add_city(self, pos):
+        tk.Label(self.sidebar, text="Mode", bg="lightgray").grid(row=0, column=0, pady=10, padx=10)
+        
+        # Mode radiobuttons
+        tk.Radiobutton(self.sidebar, text="Place", variable=self.mode, value="place", bg="lightgray").grid(row=1, column=0, sticky="w", padx=10)
+        tk.Radiobutton(self.sidebar, text="Connect", variable=self.mode, value="connect", bg="lightgray").grid(row=2, column=0, sticky="w", padx=10)
+        tk.Radiobutton(self.sidebar, text="Delete", variable=self.mode, value="delete", bg="lightgray").grid(row=3, column=0, sticky="w", padx=10)
+
+    def create_canvas(self):
+        self.canvas = tk.Canvas(self.main_frame, bg="white")
+        self.canvas.grid(row=0, column=1, sticky="nsew")
+        self.canvas.bind("<Button-1>", self.handle_click) # Binds left mousebutton to handle_click method
+
+    # Click handling
+    def handle_click(self, pos):
+        mode = self.mode.get()
+
+        if mode == "place":
+            self.place_city(pos)
+
+        elif mode == "connect":
+            self.connect_city(pos)
+
+        elif mode == "delete":
+            self.delete_city(pos)
+
+    # Other features
+    def place_city(self, pos):
         name = f"C{self.city_count}"
         city = City(name, pos.x, pos.y)
         self.cities.append(city)
+        # tegn by
+        city.draw_id = self.canvas.create_oval(pos.x - 5, pos.y - 5, pos.x + 5, pos.y + 5, fill="black")
+        city.text_id = self.canvas.create_text(pos.x, pos.y - 10, text=name)
 
-        self.canvas.create_oval(
-            pos.x - 5, pos.y - 5,
-            pos.x + 5, pos.y + 5,
-            fill="black"
-        )
-
-        self.canvas.create_text(pos.x, pos.y - 10, text=name)
         print(city)
-
         self.city_count += 1
+
+    # Find/select city method
+    def find_city_at_position(self, x, y):
+        for city in self.cities:
+            if abs(city.x - x) < 10 and abs(city.y - y) < 10:
+                return city
+        return None
+
+    # Connect two cities
+    def connect_city(self, pos):
+        city = self.find_city_at_position(pos.x, pos.y)
+        if not city:
+            return
+
+        if self.selected_city is None:
+            self.selected_city = city
+            print(f"Selected city: {city.name}")
+        else:
+            # Create connection
+            self.selected_city.add_connection(city, 1)
+            city.add_connection(self.selected_city, 1)
+            # Draw connection
+            self.canvas.create_line(
+                self.selected_city.x,
+                self.selected_city.y,
+                city.x,
+                city.y
+            )
+
+            print(f"Connected {self.selected_city.name} <-> {city.name}")
+            self.selected_city = None
+
+    # Delete a city
+    def delete_city(self, pos):
+        city = self.find_city_at_position(pos.x, pos.y)
+        if not city:
+            return
+        # Remove city from list
+        self.cities.remove(city)
+        # Remove city from canvas
+        self.canvas.delete(city.draw_id)
+        self.canvas.delete(city.text_id)
+
+        print(f"Slettet {city.name}")
 
     def run(self):
         self.root.mainloop()
-
 
 if __name__ == "__main__":
     app = App()
