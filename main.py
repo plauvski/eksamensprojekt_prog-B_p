@@ -1,8 +1,42 @@
 import tkinter as tk
 import math
 
+# Distance between two points, used for weight calculation  
 def calculate_distance(city1, city2):
     return math.sqrt((city2.x - city1.x)**2 + (city2.y - city1.y)**2)
+
+# Dijkstras algorithm
+def dijkstra(start, end, cities):
+    distances = {city: float('inf') for city in cities}
+    previous = {}
+
+    distances[start] = 0
+    unvisited = cities.copy()
+
+    while unvisited:
+        # Find node with smallest distance
+        current = min(unvisited, key=lambda city: distances[city])
+        unvisited.remove(current)
+
+        if current == end:
+            break
+        for edge in current.edges:
+            neighbor = edge.other(current)
+            new_distance = distances[current] + edge.distance
+
+            if new_distance < distances[neighbor]:
+                distances[neighbor] = new_distance
+                previous[neighbor] = current
+    # Reconstruct path
+    path = []
+    current = end
+
+    while current in previous:
+        path.insert(0, current)
+        current = previous[current]
+
+    path.insert(0, start)
+    return path, distances[end]
 
 class City:
     def __init__(self, name, x, y):
@@ -63,8 +97,10 @@ class App:
         # Data
         self.cities = []
         self.city_count = 0
-        self.selected_city = None  # used for connections
+        self.selected_city = None
         self.edges = []
+        self.start_city = None
+        self.end_city = None
 
     # UI creation methods
     def create_sidebar(self):
@@ -72,11 +108,22 @@ class App:
         self.sidebar.grid(row=0, column=0, sticky="ns")
 
         tk.Label(self.sidebar, text="Mode", bg="lightgray").grid(row=0, column=0, pady=10, padx=10)
-        
+
         # Mode radiobuttons
         tk.Radiobutton(self.sidebar, text="Place", variable=self.mode, value="place", bg="lightgray").grid(row=1, column=0, sticky="w", padx=10)
         tk.Radiobutton(self.sidebar, text="Connect", variable=self.mode, value="connect", bg="lightgray").grid(row=2, column=0, sticky="w", padx=10)
         tk.Radiobutton(self.sidebar, text="Delete", variable=self.mode, value="delete", bg="lightgray").grid(row=3, column=0, sticky="w", padx=10)
+        tk.Radiobutton(self.sidebar, text="Start", variable=self.mode, value="start", bg="lightgray").grid(row=4, column=0, sticky="w", padx=10)
+        tk.Radiobutton(self.sidebar, text="End", variable=self.mode, value="end", bg="lightgray").grid(row=5, column=0, sticky="w", padx=10)
+
+        # Run Dijkstra button
+        tk.Button(self.sidebar, text="Run", command=self.run_dijkstra).grid(row=6, column=0, pady=20)
+
+        # Result labels
+        self.dist_label = tk.Label(self.sidebar, text="Distance: -", bg="lightgray", justify="left")
+        self.dist_label.grid(row=7, column=0, padx=10, pady=10, sticky="w")
+        self.path_label = tk.Label(self.sidebar, text="Path: -", bg="lightgray", justify="left")
+        self.path_label.grid(row=8, column=0, padx=10, pady=10, sticky="w")
 
     def create_canvas(self):
         self.canvas = tk.Canvas(self.main_frame, bg="white")
@@ -92,6 +139,10 @@ class App:
             self.connect_city(pos)
         elif mode == "delete":
             self.delete_city(pos)
+        elif mode == "start":
+            self.select_start(pos)
+        elif mode == "end":
+            self.select_end(pos)
 
     # Other features
     def place_city(self, pos):
@@ -147,6 +198,10 @@ class App:
         city = self.find_city_at_position(pos.x, pos.y)
         if not city:
             return
+        if city == self.start_city:
+            self.start_city = None
+        if city == self.end_city:
+            self.end_city = None
         # Delete all edges connected to city 
         for edge in city.edges[:]:  # Copy of list
             self.delete_edge(edge)
@@ -167,6 +222,57 @@ class App:
         # Remove from "global" edge list
         self.edges.remove(edge)
         self.canvas.delete(edge.text_id)
+
+    def select_start(self, pos):
+        city = self.find_city_at_position(pos.x, pos.y)
+        if not city:
+            return
+        # Reset previous start
+        if self.start_city:
+            self.canvas.itemconfig(self.start_city.draw_id, fill="black")
+
+        self.start_city = city
+        self.canvas.itemconfig(city.draw_id, fill="green")
+        print(f"Start by: {city.name}")
+
+    def select_end(self, pos):
+        city = self.find_city_at_position(pos.x, pos.y)
+        if not city:
+            return
+        # Reset previous end
+        if self.end_city:
+            self.canvas.itemconfig(self.end_city.draw_id, fill="black")
+
+        self.end_city = city
+        self.canvas.itemconfig(city.draw_id, fill="red")
+        print(f"Slut by: {city.name}")
+
+    def run_dijkstra(self):
+        self.reset_edges()
+        if not self.start_city or not self.end_city:
+            print("Select a start and end destination.")
+            return
+        # Reset previous path
+        path, distance = dijkstra(self.start_city, self.end_city, self.cities)
+        path_names = "->" + "\n->".join(city.name for city in path)
+        # Update result labels
+        self.dist_label.config(text=f"Distance: {distance:.1f}")
+        self.path_label.config(text=f"Path: \n{path_names}")
+        print(f"Shortest path: {path_names}")
+        print("Distance:", distance)
+        self.draw_path(path)
+        
+    def draw_path(self, path):
+        for i in range(len(path) - 1):
+            city1 = path[i]
+            city2 = path[i + 1]
+            for edge in city1.edges:
+                if edge.other(city1) == city2:
+                    self.canvas.itemconfig(edge.line_id, fill="red", width=5)
+
+    def reset_edges(self):
+        for edge in self.edges:
+            self.canvas.itemconfig(edge.line_id, fill="black", width=1)
 
     def run(self):
         self.root.mainloop()
