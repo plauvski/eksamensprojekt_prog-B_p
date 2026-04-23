@@ -27,6 +27,9 @@ def dijkstra(start, end, cities):
             if new_distance < distances[neighbor]:
                 distances[neighbor] = new_distance
                 previous[neighbor] = current
+        # Edge case handling (no path)
+        if distances[end] == float('inf'):
+            return [], float('inf')
     # Reconstruct path
     path = []
     current = end
@@ -233,7 +236,7 @@ class App:
 
         self.start_city = city
         self.canvas.itemconfig(city.draw_id, fill="green")
-        print(f"Start by: {city.name}")
+        print(f"Start: {city.name}")
 
     def select_end(self, pos):
         city = self.find_city_at_position(pos.x, pos.y)
@@ -245,16 +248,23 @@ class App:
 
         self.end_city = city
         self.canvas.itemconfig(city.draw_id, fill="red")
-        print(f"Slut by: {city.name}")
+        print(f"End: {city.name}")
 
     def run_dijkstra(self):
+        # Clears previous path
         self.reset_edges()
+        # Missing start/end node handling
         if not self.start_city or not self.end_city:
             print("Select a start and end destination.")
             return
         # Reset previous path
         path, distance = dijkstra(self.start_city, self.end_city, self.cities)
         path_names = "->" + "\n->".join(city.name for city in path)
+        # Edge case handling (no route)
+        if distance == float('inf') or not path:
+            self.dist_label.config(text="No route found")
+            self.path_label.config(text="")
+            return
         # Update result labels
         self.dist_label.config(text=f"Distance: {distance:.1f}")
         self.path_label.config(text=f"Path: \n{path_names}")
