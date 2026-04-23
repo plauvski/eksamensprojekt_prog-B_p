@@ -5,17 +5,33 @@ class City:
         self.name = name
         self.x = x
         self.y = y
-        self.connections = []
+        self.edges = []
         self.draw_id = None
         self.text_id = None
 
-    def add_connection(self, other_city, distance):
-        self.connections.append((other_city, distance))
+    def add_edge(self, edge):
+        self.edges.append(edge)
 
     # format for print of City-object
     def __repr__(self):
         return f"{self.name} ({self.x}, {self.y})"
 
+class Edge:
+    def __init__(self, city1, city2, distance):
+        self.city1 = city1
+        self.city2 = city2
+        self.distance = distance
+        self.line_id = None  # canvas reference
+
+    def connects(self, city):
+        return self.city1 == city or self.city2 == city
+
+    def other(self, city):
+        if city == self.city1:
+            return self.city2
+        elif city == self.city2:
+            return self.city1
+        return None
 
 class App:
     def __init__(self):
@@ -43,6 +59,7 @@ class App:
         self.cities = []
         self.city_count = 0
         self.selected_city = None  # used for connections
+        self.edges = []
 
     # UI creation methods
     def create_sidebar(self):
@@ -64,13 +81,10 @@ class App:
     # Click handling
     def handle_click(self, pos):
         mode = self.mode.get()
-
         if mode == "place":
             self.place_city(pos)
-
         elif mode == "connect":
             self.connect_city(pos)
-
         elif mode == "delete":
             self.delete_city(pos)
 
@@ -79,7 +93,7 @@ class App:
         name = f"C{self.city_count}"
         city = City(name, pos.x, pos.y)
         self.cities.append(city)
-        # tegn by
+        # Draw city
         city.draw_id = self.canvas.create_oval(pos.x - 5, pos.y - 5, pos.x + 5, pos.y + 5, fill="black")
         city.text_id = self.canvas.create_text(pos.x, pos.y - 10, text=name)
 
@@ -94,41 +108,53 @@ class App:
         return None
 
     # Connect two cities
-    def connect_city(self, pos):
-        city = self.find_city_at_position(pos.x, pos.y)
+    def connect_city(self, event):
+        city = self.find_city_at_position(event.x, event.y)
         if not city:
             return
-
         if self.selected_city is None:
             self.selected_city = city
-            print(f"Selected city: {city.name}")
+            # Highlight selected city with blue
+            self.canvas.itemconfig(city.draw_id, fill="blue")
         else:
-            # Create connection
-            self.selected_city.add_connection(city, 1)
-            city.add_connection(self.selected_city, 1)
+            # Create edge
+            edge = Edge(self.selected_city, city, 1)
             # Draw connection
-            self.canvas.create_line(
-                self.selected_city.x,
-                self.selected_city.y,
-                city.x,
-                city.y
-            )
+            edge.line_id = self.canvas.create_line(self.selected_city.x, self.selected_city.y, city.x, city.y)
+            # Add edge to both cities' edge lists
+            self.selected_city.add_edge(edge)
+            city.add_edge(edge)
+            # Add to "global" edge list
+            self.edges.append(edge)
 
-            print(f"Connected {self.selected_city.name} <-> {city.name}")
+            # Reset colour
+            self.canvas.itemconfig(self.selected_city.draw_id, fill="black")
             self.selected_city = None
 
     # Delete a city
-    def delete_city(self, pos):
-        city = self.find_city_at_position(pos.x, pos.y)
+    def delete_city(self, event):
+        city = self.find_city_at_position(event.x, event.y)
         if not city:
             return
-        # Remove city from list
+        # Delete all edges connected to city 
+        for edge in city.edges[:]:  # Copy of list
+            self.delete_edge(edge)
+        # Delete city from list
         self.cities.remove(city)
-        # Remove city from canvas
+        # Remove from canvas
         self.canvas.delete(city.draw_id)
         self.canvas.delete(city.text_id)
 
-        print(f"Slettet {city.name}")
+        print(f"Deleted {city.name}")
+    
+    def delete_edge(self, edge):
+        # Remove from canvas
+        self.canvas.delete(edge.line_id)
+        # Remove edge from both cities' edge lists
+        edge.city1.edges.remove(edge)
+        edge.city2.edges.remove(edge)
+        # Remove from "global" edge list
+        self.edges.remove(edge)
 
     def run(self):
         self.root.mainloop()
