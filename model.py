@@ -6,39 +6,42 @@ def calculate_distance(city1, city2):
 
 # Dijkstras algorithm
 def dijkstra(start, end, cities):
-    distances = {city: float('inf') for city in cities} # Note: Implicit hashing
-    previous = {}
+    distances = {city: float('inf') for city in cities} # Sets distance values of all cities to infinity
+    previous = {} # Used for reconstruction of route
 
-    distances[start] = 0
-    unvisited = cities.copy()
+    distances[start] = 0 # Set value of start node
+    unvisited = cities.copy() # List of unvisited cities
 
-    while unvisited:
-        # Find node with smallest distance
-        current = min(unvisited, key=lambda city: distances[city])
-        unvisited.remove(current)
+    # Main loop
+    while unvisited: # Loops until all cities have been visited
+        current = min(unvisited, key=lambda city: distances[city]) # Find node with shortest distance
+        unvisited.remove(current) # Mark city as visited
 
-        if current == end:
+        if current == end: # Break out of the loop if end node is reached
             break
-        for edge in current.edges:
-            neighbor = edge.other(current)
-            new_distance = distances[current] + edge.distance
+        for edge in current.edges: # Evaluate connected edges
+            neighbor = edge.other(current) # Find neighbouring node
+            new_distance = distances[current] + edge.distance # Calculate new distance
 
-            if new_distance < distances[neighbor]:
-                distances[neighbor] = new_distance
-                previous[neighbor] = current
-        # Edge case handling (no path)
+            # Compare and update shortest distance
+            if new_distance < distances[neighbor]: # Check if new distance to neighbour is shorter than previous 
+                distances[neighbor] = new_distance # Update neighbour distance
+                previous[neighbor] = current # Update which node we came from. Allows for path reconstruction
+    
+    # Edge case handling (no path)
     if distances[end] == float('inf'):
         return [], float('inf')
-    # Reconstruct path
+    # Reconstruct path from end node
     path = []
     current = end
 
+    # Loops in reverse over route  
     while current in previous:
         path.insert(0, current)
         current = previous[current]
-
+    # Add start last
     path.insert(0, start)
-    return path, distances[end]
+    return path, distances[end] # Return path list and total distance
 
 class City:
     def __init__(self, name, x, y):
@@ -52,7 +55,7 @@ class City:
     def add_edge(self, edge):
         self.edges.append(edge)
 
-    # format for print of City-object
+    # Format for print of City-object
     def __repr__(self):
         return f"{self.name} ({self.x}, {self.y})"
 
@@ -64,9 +67,11 @@ class Edge:
         self.line_id = None
         self.text_id = None
 
+    # Connect two
     def connects(self, city):
         return self.city1 == city or self.city2 == city
 
+    # Find neighbour
     def other(self, city):
         if city == self.city1:
             return self.city2
