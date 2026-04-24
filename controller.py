@@ -1,12 +1,13 @@
-# controller.py (refactored)
 class Controller:
-    def __init__(self, model, view):
+    def __init__(self, model):
         self.model = model
+        self.view = None  # Gets set to App later
+        
+    # Link view to controller
+    def set_view(self, view):
         self.view = view
 
-    # Click handler
     def handle_click(self, pos, mode):
-        """Route clicks based on mode"""
         if mode == "place":
             self.place_city(pos)
         elif mode == "connect":
@@ -20,12 +21,10 @@ class Controller:
 
     def place_city(self, pos):
         city = self.model.add_city(pos.x, pos.y) # Creates City object
-        self.view.draw_city(city) # Displays City object on canvas
-        print(city)
+        self.view.display_city(city) # Displays City object on canvas through UI
 
     def connect_city(self, pos):
         city = self.model.find_city_at_position(pos.x, pos.y) # Selects city near mouse
-        
         if not city:
             return
         
@@ -36,64 +35,78 @@ class Controller:
             edge, error = self.model.connect_cities(self.model.selected_city, city)
             
             if error:
-                print(error)
+                self.view.show_error(error)
             else:
-                self.view.draw_edge(edge, self.model.selected_city, city)
+                # Send data to UI
+                cities_data = self.get_all_cities_data()
+                self.view.display_all_cities(cities_data)
+                self.view.display_edge(edge, self.model.selected_city, city)
             
             self.model.deselect_city()
-            self.view.update_all_city_colors(self.model)
 
     def delete_city(self, pos):
         city = self.model.find_city_at_position(pos.x, pos.y) # Selects city near mouse
         if not city:
             return
         
-        # Erase from view first
         self.view.erase_city(city)
         for edge in city.edges[:]:
             self.view.erase_edge(edge)
         
-        # Remove from model
         self.model.delete_city(city)
-        
-        self.view.update_all_city_colors(self.model)
-        self.view.update_run_button(self.model)
-        print(f"Deleted {city.name}")
+        cities_data = self.get_all_cities_data()
+        self.view.display_all_cities(cities_data)
 
     def select_start(self, pos):
         city = self.model.find_city_at_position(pos.x, pos.y)
         if not city:
             return
-        
         self.model.set_start_city(city)
-        self.view.update_all_city_colors(self.model)
-        self.view.update_run_button(self.model)
-        print(f"Start: {city.name}")
+        cities_data = self.get_all_cities_data()
+        self.view.display_all_cities(cities_data)
+        self.update_run_button_state()
 
     def select_end(self, pos):
         city = self.model.find_city_at_position(pos.x, pos.y)
         if not city:
             return
-        
         self.model.set_end_city(city)
-        self.view.update_all_city_colors(self.model)
-        self.view.update_run_button(self.model)
-        print(f"End: {city.name}")
+        cities_data = self.get_all_cities_data()
+        self.view.display_all_cities(cities_data)
+        self.update_run_button_state()
 
     def run_dijkstra(self):
         # Update view
-        self.view.reset_edges(self.model)
-        self.view.update_all_city_colors(self.model)
-        
+        self.view.reset_edges(self.model.edges)
         # Execute Dijkstra
         path, distance, error = self.model.run_dijkstra()
-        
         # Display error in view
         if error:
             self.view.show_error(error)
             return
         
-        # Format path display
+        # Format path data and send to UI
+        path_with_dist = self._format_path(path)
+        path_names = "->" + "\n->".join(path_with_dist)
+        self.view.show_result(distance, path_names)
+        self.view.highlight_path(path)
+
+    # UI helper methods
+    # Returns all data about a given city to UI
+    def get_all_cities_data(self):
+        return {
+            'cities': self.model.cities,
+            'start_city': self.model.start_city,
+            'end_city': self.model.end_city,
+            'selected_city': self.model.selected_city
+        }
+
+    # Returns data about all edges to UI
+    def get_all_edges_data(self):
+        return self.model.edges
+
+    # Helps format the path display properly
+    def _format_path(self, path):
         path_with_dist = []
         current_dist = 0
         for i in range(len(path)):
@@ -105,8 +118,19 @@ class Controller:
                         current_dist += edge.distance
                         break
                 path_with_dist.append(f"{path[i].name} ({current_dist:.1f})")
+        return path_with_dist
         
-        path_names = "->" + "\n->".join(path_with_dist)
-        # Update view display
-        self.view.show_result(distance, path_names)
-        self.view.draw_path(path)
+    # Tell view whether to enable run button
+    def update_run_button_state(self):
+        can_run = self.model.start_city is not None and self.model.end_city is not None
+        self.view.set_run_button_enabled(can_run)
+    
+    # Clear all cities and edges
+    def clear_all(self):
+        self.model.cities = []
+        self.model.edges = []
+        self.model.selected_city = None
+        self.model.start_city = None
+        self.model.end_city = None
+        self.model.city_count = 0
+        self.update_run_button_state()
