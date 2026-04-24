@@ -1,26 +1,13 @@
-from ui import UI
+from model import Model
 from controller import Controller
+from ui import UI
 
 class App:
     def __init__(self):
-        # Data
-        self.cities = []
-        self.city_count = 0
-        self.selected_city = None
-        self.edges = []
-        self.start_city = None
-        self.end_city = None
-        # UI
-        self.ui = UI(self)
-        # Controller
-        self.controller = Controller(self)
-
-    # Click handling
-    def handle_click(self, pos):
-        self.controller.handle_click(pos)
-
-    def run_dijkstra(self):
-        self.controller.run_dijkstra()
+        self.model = Model()
+        self.controller = Controller(self.model, None)  # Create controller first
+        self.ui = UI(self.controller, self.model)  # Pass controller directly
+        self.controller.view = self.ui  # Update controller's view reference
 
     def run(self):
         self.ui.run()
