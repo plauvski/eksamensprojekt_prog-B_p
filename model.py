@@ -65,6 +65,10 @@ class Model:
     def deselect_city(self):
         self.selected_city = None
 
+    # Distance calculation
+    def calculate_distance(self, city1, city2):
+        return math.sqrt((city2.x - city1.x)**2 + (city2.y - city1.y)**2)
+
     def connect_cities(self, city1, city2):
         # Avoid creating connection to self
         if city1 == city2:
@@ -73,7 +77,7 @@ class Model:
         if any(edge.other(city1) == city2 for edge in city1.edges):
             return None, "Connection already exists"
         
-        distance = calculate_distance(city1, city2)
+        distance = self.calculate_distance(city1, city2)
         edge = Edge(city1, city2, distance)
         city1.add_edge(edge)
         city2.add_edge(edge)
@@ -149,3 +153,20 @@ class Model:
             return None, None, "No route found"
         
         return path, distance, None
+    
+    def reset(self):
+        self.cities = []
+        self.edges = []
+        self.selected_city = None
+        self.start_city = None
+        self.end_city = None
+        self.city_count = 0
+    
+    def get_cities(self):
+        return list(self.cities)
+
+    def get_state(self):
+        return {'cities': self.get_cities(), 'start_city': self.start_city, 'end_city': self.end_city, 'selected_city': self.selected_city}
+    
+    def get_edges_of_city(self, city):
+        return list(city.edges)

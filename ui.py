@@ -3,6 +3,12 @@ import tkinter as tk
 class UI:
     def __init__(self, controller):
         self.controller = controller
+        # Create UI
+        self.create_ui()
+        # Create canvas
+        self.create_canvas()
+
+    def create_ui(self):
         self.root = tk.Tk()
         self.root.title("Transport Network Simulator")
         self.root.state("zoomed")
@@ -53,9 +59,6 @@ class UI:
         
         self.path_label = tk.Label(self.left_panel, text="Path: -", bg="white", wraplength=180, justify="left", height=4)
         self.path_label.pack(pady=5, padx=10, fill="both", expand=True)
-        
-        # Create canvas
-        self.create_canvas()
 
     def create_canvas(self):
         self.canvas = tk.Canvas(self.main_frame, bg="white")

@@ -1,7 +1,7 @@
 class Controller:
     def __init__(self, model):
         self.model = model
-        self.view = None  # Gets set to App later
+        self.view = None  # Gets configured in App later
         
     # Link view to controller
     def set_view(self, view):
@@ -50,7 +50,7 @@ class Controller:
             return
         
         self.view.erase_city(city)
-        for edge in city.edges[:]:
+        for edge in self.model.get_edges_of_city(city):
             self.view.erase_edge(edge)
         
         self.model.delete_city(city)
@@ -86,7 +86,7 @@ class Controller:
             return
         
         # Format path data and send to UI
-        path_with_dist = self._format_path(path)
+        path_with_dist = self.format_path(path)
         path_names = "->" + "\n->".join(path_with_dist)
         self.view.show_result(distance, path_names)
         self.view.highlight_path(path)
@@ -94,31 +94,30 @@ class Controller:
     # UI helper methods
     # Returns all data about a given city to UI
     def get_all_cities_data(self):
-        return {
-            'cities': self.model.cities,
-            'start_city': self.model.start_city,
-            'end_city': self.model.end_city,
-            'selected_city': self.model.selected_city
-        }
+        cities_data = self.model.get_state()
+        return cities_data
 
     # Returns data about all edges to UI
     def get_all_edges_data(self):
         return self.model.edges
 
     # Helps format the path display properly
-    def _format_path(self, path):
-        path_with_dist = []
-        current_dist = 0
+    def format_path(self, path):
+        path_with_dist = [] # List including formatted cities along with cumulative distance
+        current_dist = 0 # Keep track of the total distance from start node 
+        # Go through all cities in route
         for i in range(len(path)):
-            if i == 0:
-                path_with_dist.append(f"{path[i].name} (0)")
+            if i == 0: 
+                path_with_dist.append(f"{path[i].name} (0)") # The first city, i.e. start, always has distance 0
             else:
+                # Find connection between previous and current city
                 for edge in path[i-1].edges:
+                    # When the connection is found, add its distance to the total
                     if edge.other(path[i-1]) == path[i]:
                         current_dist += edge.distance
                         break
-                path_with_dist.append(f"{path[i].name} ({current_dist:.1f})")
-        return path_with_dist
+                path_with_dist.append(f"{path[i].name} ({current_dist:.1f})") # Add city along with respective cumulative distance to the formatted list
+        return path_with_dist # Return the formatted list of strings
         
     # Tell view whether to enable run button
     def update_run_button_state(self):
@@ -127,10 +126,5 @@ class Controller:
     
     # Clear all cities and edges
     def clear_all(self):
-        self.model.cities = []
-        self.model.edges = []
-        self.model.selected_city = None
-        self.model.start_city = None
-        self.model.end_city = None
-        self.model.city_count = 0
+        self.model.reset()
         self.update_run_button_state()
