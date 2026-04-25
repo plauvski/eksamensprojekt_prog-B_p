@@ -76,18 +76,18 @@ class Controller:
         self.update_run_button_state()
 
     def run_dijkstra(self):
-        # Update view
+        # Update view in UI
         self.view.reset_edges(self.model.edges)
-        # Execute Dijkstra
+        # Execute Dijkstra method in model
         path, distance, error = self.model.run_dijkstra()
         # Display error in view
         if error:
             self.view.show_error(error)
             return
         
-        # Format path data and send to UI
-        path_with_dist = self.format_path(path)
-        path_names = "->" + "\n->".join(path_with_dist)
+        path_with_dist = self.format_path(path) # Format path data to get "city name (cumulative distance)"
+        path_names = "->" + "\n->".join(path_with_dist) # Format of every path becomes "->city name (cumulative distance)"
+        # Update view in UI
         self.view.show_result(distance, path_names)
         self.view.highlight_path(path)
 
